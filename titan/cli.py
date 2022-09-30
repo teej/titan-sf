@@ -2,20 +2,28 @@ import re
 
 import click
 
-from titan import TITAN_DEFAULT_SCHEMA, env, package
+from titan import TITAN_DEFAULT_SCHEMA, environment, package, installer
+
+# from titan.package import Package, resolve_dependencies
 
 
-class SchemaName(click.ParamType):
+class SnowflakeIdentifier(click.ParamType):
     name = "string"
     SCHEMA_PATTERN = re.compile(r"^([A-Za-z\_][A-Za-z\_0-9]+)$")
 
     def convert(self, value, param, ctx):
         if self.SCHEMA_PATTERN.match(value):
             return value
-        self.fail(f"{value!r} is not a valid schema identifier", param, ctx)
+        self.fail(f"{value!r} is not a valid identifier", param, ctx)
 
 
-SCHEMA_NAME = SchemaName()
+db_option = click.option(
+    "--database",
+    "-d",
+    "db",
+    help=f"Database to use",
+    type=SnowflakeIdentifier(),
+)
 
 
 schema_option = click.option(
@@ -24,8 +32,11 @@ schema_option = click.option(
     default=TITAN_DEFAULT_SCHEMA,
     show_default=True,
     help=f"Schema to use",
-    type=SCHEMA_NAME,
+    type=SnowflakeIdentifier(),
 )
+
+
+hard_reset_option = click.option("--hard-reset", is_flag=True, help=f"Hard reset the Titan environment")
 
 
 @click.group()
@@ -52,9 +63,10 @@ def _echo_header(message, header="h2"):
 
 
 @greet.command()
-@click.argument("db")
+@db_option
 @schema_option
-def init(db, schema):
+@hard_reset_option
+def init(db, schema, hard_reset):
     """Initializes Titan package manager
 
     DB - the target database to use
@@ -66,22 +78,31 @@ def init(db, schema):
     # Create empty manifest in schema
     # UNSURE: Create schema state (function or table or smth) - is this the manifest? is this the lockfile?
 
-    env.create(db=db, schema=schema)
+    if environment.exists(db, schema):
+        if hard_reset:
+            environment.destroy(db, schema)
+            print("Old env destroyed")
+        else:
+            return
+    print("Env doesnt exist, creating")
+
+    environment.create(db, schema)
+    print("Titan environment created successfully")
     # manifest.create(db=db, schema=schema)
     # lock.create(db=db, schema=schema)
 
 
 @greet.command()
 @click.argument("package_name")
-@click.argument("db")
+@db_option
 @schema_option
 def install(package_name, db, schema):
     """Install PACKAGE_NAME"""
     _echo_header(f"Installing package: [{package_name}]", header="h1")
 
     # Enforce single-threaded execution
-    # If schema doesnt exist, fail
-    env.get(db, schema)
+    print(package_name, db, schema)
+    env = environment.get(db, schema)
 
     # If manifest doesnt exist, fail?
     # Pip doesnt touch manifests, but node does
@@ -92,11 +113,23 @@ def install(package_name, db, schema):
     # Sync manifest to lockfile
     # Sync lockfile to dependency code
 
-    pack = package.get_from_ref(package_name)
+    pack = package.find(package_name)
+    print(pack)
     # if package ref is remote, download
-    # display expected tree of objects to be installed
 
-    raise NotImplementedError
+    deps = package.resolve_dependencies(pack)
+
+    # # display expected tree of objects to be installed
+    # response = input("Would you like to proceed? [Y/n]")
+    # if response != 'Y':
+    #     return
+
+    installer.install(env, pack)
+
+    # installer.install(env, package.find("arraytools==1.0.0"))
+    # installer.install(env, package.find("datatools"), deps={"arraytools": "arraytools__1_0_0"})
+
+    # raise NotImplementedError
 
 
 # @greet.command()
@@ -116,7 +149,7 @@ def install(package_name, db, schema):
 
 
 @greet.command()
-@click.argument("db")
+@db_option
 @schema_option
 def freeze(db, schema):
     """
