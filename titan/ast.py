@@ -15,17 +15,13 @@ def arg_name(node):
 
 
 def change_name(node, new_name):
-    if isinstance(node, (exp.UserDefinedFunction, exp.StoredProcedure)):
+    if isinstance(node, exp.UserDefinedFunction):
         node.this.set("this", new_name)
     return node
 
-    # func = node.find
-    # if func:
-    # return sql(func.this)
-
 
 def func_name(node):
-    func = node.find(exp.UserDefinedFunction, exp.StoredProcedure)
+    func = node.find(exp.UserDefinedFunction)
     if func:
         return sql(func.this)
 
@@ -42,10 +38,12 @@ def get_return_type(node):
     return get_returns(node).args.get("value")
 
 
+def has_sproc(node):
+    return node.args.get("kind") == "PROCEDURE"
+
+
 def serde_for_return_type(node):
     return_type = get_return_type(node).this
-    # if return_type:
-    #     return_type = returns.args.get("value").this
     if return_type == exp.DataType.Type.OBJECT:
         return "json"
     elif return_type == exp.DataType.Type.BOOLEAN:
@@ -53,7 +51,7 @@ def serde_for_return_type(node):
 
 
 def sql(node):
-    return node.sql()  # write="snowflake"
+    return node.sql()
 
 
 def strip_or_replace(node):

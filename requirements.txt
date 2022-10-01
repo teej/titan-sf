@@ -1,5 +1,6 @@
+# sqlglot>=6.2.7
 /Users/tjmurphy/Code/sqlglot
-click ~= 8.1
+click~=8.1
 snowflake-connector-python
 semver
 python-constraint

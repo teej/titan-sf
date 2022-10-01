@@ -13,7 +13,7 @@ class Package:
     @classmethod
     def from_local(cls, package_name, package_path):
         try:
-            package_config = json.loads(open(os.path.join(package_path, f"{package_name}.sql"), "r").read())
+            package_config = json.loads(open(os.path.join(package_path, "package.json"), "r").read())
         except Exception as e:
             print("Could not load package config")
             raise e
@@ -22,7 +22,7 @@ class Package:
 
         for filename in os.listdir(package_path):
             print("->", filename)
-            if filename == f"{package_name}.sql":
+            if not filename.endswith(".sql"):
                 continue
             codes = sqlglot.parse(open(os.path.join(package_path, filename)).read(), read="snowflake")
             for code in codes:
@@ -47,6 +47,10 @@ class Package:
     #     print(f'found {len(code_files)} files')
 
     def _verify_contents(self):
+        # For each file, process imports
+        # parse
+        # use ast to look for identifiers: function calls, tables, etc
+        # hard fail if specifying a database/schema IFF it hasn't been imported OR isnt THIS
         for c in self._contents:
             print("found ->", str(c))
 

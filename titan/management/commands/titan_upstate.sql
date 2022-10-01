@@ -1,4 +1,4 @@
-CREATE PROCEDURE TITAN_UPSTATE(key VARCHAR, value VARIANT)
+CREATE PROCEDURE titan_upstate(key VARCHAR, value VARIANT)
     RETURNS BOOLEAN
     LANGUAGE SQL
     EXECUTE AS CALLER
@@ -9,7 +9,7 @@ DECLARE
     state_sql VARCHAR;
 BEGIN
     new_state := OBJECT_INSERT(TITAN_STATE(), :key, :value, TRUE);
-    state_sql := 'SELECT TO_OBJECT(PARSE_JSON(\'' || TO_JSON(:new_state) || '\'))';
+    state_sql := 'SELECT TO_OBJECT(PARSE_JSON('' '|| TO_JSON(:new_state) ||' ''))';
     EXECUTE IMMEDIATE
         'CREATE OR REPLACE FUNCTION TITAN_STATE()
          RETURNS OBJECT
@@ -22,3 +22,4 @@ EXCEPTION
         return FALSE;
 END;
 $$
+

@@ -29,8 +29,8 @@ class Environment:
 def create(db, schema):
     with connect.scoped_cursor(db) as cur:
         cur.exec(f"CREATE SCHEMA IF NOT EXISTS {db}.{schema}")
-        for cmd in management.COMMANDS.values():
-            cur.exec(cmd.source)
+        for cmd in management.COMMANDS:
+            cur.exec(cmd)
         cur.titan_upstate("titan_version", connect.Sql(f"'{__version__}'::VARIANT"))
         cur.titan_upstate("packages", [])
 
