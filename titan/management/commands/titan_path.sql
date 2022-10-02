@@ -1,0 +1,11 @@
+-- CREATE FUNCTION titan_path()
+-- RETURNS VARCHAR
+-- IMMUTABLE
+-- AS $$
+--   SELECT LISTAGG(PACKAGE, ', ')
+--   FROM (
+--     SELECT DISTINCT IMPORT(VALUE) AS PACKAGE
+--     FROM LATERAL FLATTEN(input => PACKAGE_NAMES)
+--   ) x
+-- $$
+-- ;

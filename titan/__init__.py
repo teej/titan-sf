@@ -1,0 +1,8 @@
+import os
+
+__version__ = "0.0.2"
+
+TITAN_DEFAULT_SCHEMA = "TITAN"
+TITAN_PATH = os.environ["TITAN_PATH"]
+
+from titan.reserved import RESERVED_FUNCTION_NAMES

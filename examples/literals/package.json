@@ -1,0 +1,8 @@
+{
+    "package_name": "literals",
+    "version": "1.0.0",
+    "dependencies": [
+        "arraytools>=0.1.0"
+    ]
+}
+    
