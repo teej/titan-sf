@@ -20,7 +20,6 @@ def _load_commands():
             for statement in parsed:
                 if not statement:
                     continue
-                print(repr(statement))
                 COMMANDS.add(str(statement))
 
                 name = statement.this.this.this
@@ -31,7 +30,6 @@ def _load_commands():
                 trigger = "CALL" if ast.has_sproc(statement) else "SELECT"
 
                 sql = f"{trigger} {name}(" + (",".join(["{!r}" for _ in arglist])) + ")"
-                print(sql)
 
                 Cursor.add(name, sql, arglist, serde)
 

@@ -1,10 +1,11 @@
 import os
 import json
 
-import sqlglot
 import semver
 
-from titan import TITAN_PATH
+from sqlglot import exp, parse
+
+from titan import RESERVED_FUNCTION_NAMES, TITAN_PATH, ast
 
 # from constraint import Problem
 
@@ -18,41 +19,81 @@ class Package:
             print("Could not load package config")
             raise e
 
-        contents = []
+        code = {}
 
         for filename in os.listdir(package_path):
             print("->", filename)
             if not filename.endswith(".sql"):
                 continue
-            codes = sqlglot.parse(open(os.path.join(package_path, filename)).read(), read="snowflake")
-            for code in codes:
-                contents.append(code)
+            code[filename] = open(os.path.join(package_path, filename)).read()
 
-        return cls(package_name, package_config, contents)
+        return cls(package_name, package_config, code)
 
-    def __init__(self, name, config, contents):
+    def __init__(self, name, config, code):
         try:
             self._name = config["package_name"]
             self._version = semver.VersionInfo.parse(config["version"])
             self._dependencies = config.get("dependencies")
-            self._contents = contents
+            self._code = code
+            self._entities = {}
+            self._entity_names = set()
+            self._imports = {}
         except KeyError as err:
             raise Exception(f"Package config for [{name}] invalid, missing [{err.args[0]}]")
         if name != self._name:
             raise Exception(f"Package name doesnt match config [{name} != {self._name}]")
-        # self._load_contents()
+        self._unpack()
         self._verify_contents()
 
-    # def _load_contents(self):
-    #     print(f'found {len(code_files)} files')
-
-    def _verify_contents(self):
+    def _unpack(self):
         # For each file, process imports
         # parse
         # use ast to look for identifiers: function calls, tables, etc
         # hard fail if specifying a database/schema IFF it hasn't been imported OR isnt THIS
-        for c in self._contents:
-            print("found ->", str(c))
+
+        for fn, file in self._code.items():
+            statements = parse(file, read="snowflake")
+            for stmt in statements:
+                if ast.is_command(stmt):
+                    name, args = ast.parse_command(stmt)
+                    if name == "TITAN_IMPORT":
+                        for package_ref in args[0]:
+                            self._imports[package_ref] = True
+                elif stmt:
+                    name = ast.func_name(stmt)
+                    sig = ast.func_signature(stmt)
+                    refs = ast.collect_refs(stmt)
+                    prefs = [PackageReference.from_expression(ref) for ref in refs]
+                    self._entity_names.add(name.upper())
+                    self._entities[sig] = PackageEntity(name=name, sig=sig, statement=stmt, refs=prefs)
+        print("done unpacking")
+        print(self._entities)
+
+    def _verify_contents(self):
+        dangling_references = []
+        # Verify references
+        for name, entity in self._entities.items():
+            print("Verify", entity.sig)
+            if name in RESERVED_FUNCTION_NAMES:
+                raise Exception(f"Package function {name} is reserved")
+
+            print(entity.refs)
+            for ref in entity.refs:
+                print("  - entity:", ref)
+                if ref.exp_type == exp.Table:
+                    raise Exception(f"Package includes a table reference [{ref.full_name()}]")
+                elif ref.exp_type == exp.Anonymous:
+                    if ref.name in RESERVED_FUNCTION_NAMES:
+                        continue
+                    elif ref.name in self._entity_names:
+                        continue
+                    elif ref.db:
+                        raise Exception(f"Cannot specify db [{ref.full_name()}]")
+                    elif ref.schema and ref.schema not in self._imports:
+                        raise Exception(f"Cannot specify schema [{ref.full_name()}]")
+                    else:
+                        raise Exception(f"Dangling reference [{ref.full_name()}]")
+                    # dangling_references
 
     @property
     def dependencies(self):
@@ -72,6 +113,58 @@ class Package:
 
     def __str__(self):
         return f"Package<{self._name}, {self._version}>"
+
+
+class PackageEntity:
+    def __init__(self, name, sig, statement, refs):
+        self.name = name
+        self.sig = sig
+        self.statement = statement
+        self.refs = refs
+
+
+class PackageReference:
+    @classmethod
+    def from_expression(cls, ex):
+        if isinstance(ex, exp.UserDefinedFunction):
+            args = ast.get_args(ex)
+            args = ", ".join([arg.sql() for arg in args])
+            return cls(db=None, schema=None, name=ex.name, exp_type=exp.UserDefinedFunction, args=args)
+        elif isinstance(ex, exp.Table):
+            db = ex.args.get("catalog")
+            if db:
+                db = db.name
+            schema = ex.args.get("db")
+            if schema:
+                schema = schema.name
+            return cls(db=db, schema=schema, name=ex.name, exp_type=exp.Table)
+        elif isinstance(ex, exp.Anonymous):
+            args = ", ".join(["_"] * ex.expressions)
+            return cls(db=None, schema=None, name=ex.name, exp_type=exp.Anonymous, args=args)
+        elif isinstance(ex, exp.Dot):
+            db, schema = None, None
+            while isinstance(ex, exp.Dot):
+                if schema:
+                    db = schema
+                schema = ex.this.name
+                ex = ex.expression
+            return cls(db=db, schema=schema, name=ex.name, exp_type=type(ex))
+
+    def __init__(self, db, schema, name, exp_type, args=None):
+        self.db = db
+        self.schema = schema
+        self.name = name
+        self.exp_type = exp_type
+        self.args = args
+
+    def __str__(self):
+        return f"PackageRef<{self.full_name()}>"
+
+    def full_name(self):
+        db = self.db + "." if self.db else ""
+        schema = self.schema + "." if self.schema else ""
+        args = f"({self.args})" if self.args else ""
+        return f"{db}{schema}{self.name}{args}"
 
 
 # def get_from_git(git_url):
