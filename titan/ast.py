@@ -51,6 +51,7 @@ def get_func_ref(node):
 
 
 def collect_refs(node):
+    # breakpoint()
     # Create UDF refs
     refs = []
     udf = node.find(exp.UserDefinedFunction)
@@ -94,6 +95,10 @@ def is_command(node):
     return isinstance(node, exp.Command)
 
 
+def is_table_function(node):
+    return isinstance(get_return_type(node), exp.Schema)
+
+
 def parse_command(node):
     sproc = parse_one(node.expression.this)
     name = sproc.this
@@ -110,7 +115,10 @@ def parse_command(node):
 
 def serde_for_return_type(node):
     return_type = get_return_type(node).this
-    if return_type == exp.DataType.Type.OBJECT:
+    if return_type in (
+        exp.DataType.Type.OBJECT,
+        exp.DataType.Type.ARRAY,
+    ):
         return "json"
     elif return_type == exp.DataType.Type.BOOLEAN:
         return "bool"
@@ -132,3 +140,28 @@ def strip_anon_func(node):
             return node
 
     return node.transform(_strip)
+
+
+def wire_dependencies(node, pack_name, pack_name_versioned):
+    print("wire_dependencies", pack_name, pack_name_versioned)
+
+    # breakpoint()
+    if not node.find(exp.UserDefinedFunction):
+        return node
+
+    code = None
+    with suppress(Exception):
+        code = parse_one(node.expression.name)
+
+    if code:
+        swapped = False
+        for func in code.find_all(exp.Anonymous):
+            if isinstance(func.parent, exp.Dot):
+                if func.parent.this.this == pack_name:
+                    func.set("this", f"{pack_name_versioned}__{func.name}")
+                    func.parent.replace(func)
+                    swapped = True
+                # func.parent.this.set("this", pack_name_versioned)
+        if swapped:
+            node.expression.set("this", code.sql().replace("LATERAL VIEW", "LATERAL"))
+    return node

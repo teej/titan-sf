@@ -1,0 +1,10 @@
+CREATE FUNCTION good_fruit()
+  RETURNS ARRAY
+  LANGUAGE SQL
+  IMMUTABLE
+AS $$
+SELECT [
+  ''
+]
+$$
+;

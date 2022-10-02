@@ -25,6 +25,17 @@ class Environment:
     def schema(self):
         return self._schema
 
+    def has_dependencies(self, deps):
+        with connect.env_cursor(self) as cur:
+            packs = cur.titan_list()
+            for name, version in deps.items():
+                if name not in packs:
+                    return False
+                    # raise Exception(f"Missing dependency {name}")
+            # print(deps)
+            # return cur.titan_upstate("packages", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
+        return True
+
 
 def create(db, schema):
     with connect.scoped_cursor(db) as cur:

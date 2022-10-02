@@ -70,7 +70,6 @@ class Package:
         print(self._entities)
 
     def _verify_contents(self):
-        dangling_references = []
         # Verify references
         for name, entity in self._entities.items():
             print("Verify", entity.sig)
@@ -85,28 +84,36 @@ class Package:
                 elif ref.exp_type == exp.Anonymous:
                     if ref.name in RESERVED_FUNCTION_NAMES:
                         continue
-                    elif ref.name in self._entity_names:
+                    elif ref.name.upper() in self._entity_names:
                         continue
                     elif ref.db:
                         raise Exception(f"Cannot specify db [{ref.full_name()}]")
-                    elif ref.schema and ref.schema not in self._imports:
-                        raise Exception(f"Cannot specify schema [{ref.full_name()}]")
+                    elif ref.schema:
+                        if ref.schema not in self._imports:
+                            raise Exception(f"Cannot specify schema [{ref.full_name()}]")
                     else:
                         raise Exception(f"Dangling reference [{ref.full_name()}]")
-                    # dangling_references
 
     @property
     def dependencies(self):
         return self._dependencies
 
     @property
-    def contents(self):
-        return self._contents
+    def entities(self):
+        return self._entities
+
+    @property
+    def imports(self):
+        return self._imports
 
     @property
     def id(self):
         version = str(self._version).replace(".", "_")
         return f"{self._name}__{version}"
+
+    @property
+    def name(self):
+        return self._name
 
     def pointer(self):
         return (self._name, self._version)
@@ -126,6 +133,7 @@ class PackageEntity:
 class PackageReference:
     @classmethod
     def from_expression(cls, ex):
+        print(repr(ex))
         if isinstance(ex, exp.UserDefinedFunction):
             args = ast.get_args(ex)
             args = ", ".join([arg.sql() for arg in args])
@@ -149,6 +157,8 @@ class PackageReference:
                 schema = ex.this.name
                 ex = ex.expression
             return cls(db=db, schema=schema, name=ex.name, exp_type=type(ex))
+        else:
+            breakpoint()
 
     def __init__(self, db, schema, name, exp_type, args=None):
         self.db = db
@@ -195,17 +205,19 @@ def resolve_dependencies(root):
             raise Exception(f"Unknown dependency {dep}")
         pack = find(package_ref)
         add(pack)
-    print(pointers)
+    # print("%" * 120)
+    # print(pointers)
     return pointers
 
 
 def parse_package_ref(package_ref):
-    parts = package_ref.split("==")
-    if len(parts) == 1:
-        return (parts[0], None)
-    return tuple(parts)
-
-    # return name, version
+    for sep in ["==", ">=", "<=", "~="]:
+        if sep in package_ref:
+            return package_ref.split(sep)
+    return (
+        package_ref,
+        None,
+    )
 
 
 def find(package_ref):

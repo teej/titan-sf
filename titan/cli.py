@@ -104,27 +104,21 @@ def install(package_name, db, schema):
     print(package_name, db, schema)
     env = environment.get(db, schema)
 
-    # If manifest doesnt exist, fail?
-    # Pip doesnt touch manifests, but node does
-
-    # Create lockfile if not exists
-    # Parse package, grab package metadata
-    # Add package to manifest
-    # Sync manifest to lockfile
-    # Sync lockfile to dependency code
-
     pack = package.find(package_name)
     print(pack)
-    # if package ref is remote, download
 
     deps = package.resolve_dependencies(pack)
+
+    if not env.has_dependencies(deps):
+        # raise Exception(f"Environment missing dependency")
+        print("Environment missing dependency")
 
     # # display expected tree of objects to be installed
     # response = input("Would you like to proceed? [Y/n]")
     # if response != 'Y':
     #     return
 
-    installer.install(env, pack)
+    installer.install(env, pack, deps)
 
     # installer.install(env, package.find("arraytools==1.0.0"))
     # installer.install(env, package.find("datatools"), deps={"arraytools": "arraytools__1_0_0"})
