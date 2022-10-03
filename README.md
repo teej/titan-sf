@@ -4,10 +4,12 @@
   / __/ / __/ _ `/ _ \
   \__/_/\__/\_,_/_//_/
    
+a proof-of-concept package manager for Snowflake
 ```
 
+## What is this?
 
-a package manager for the snowflake data warehouse
+I wrote titan for the [HYTRADBOI jam](https://www.hytradboi.com/jam). titan is a declarative, pure-SQL package manager for Snowflake.
 
 ## Getting Started
 
