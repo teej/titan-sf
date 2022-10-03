@@ -8,11 +8,12 @@ from titan import __version__, connect, management
 
 
 class Environment:
-    def __init__(self, db, schema, titan_version, packages):
+    def __init__(self, db, schema, titan_version, packages, links):
         self._db = db
         self._schema = schema
         self._titan_version = titan_version
         self._packages = packages
+        self._links = links
 
     def __str__(self):
         return f"Environment<{self._db}.{self._schema}, version={self._titan_version}>"
@@ -27,7 +28,8 @@ class Environment:
 
     def has_dependencies(self, deps):
         with connect.env_cursor(self) as cur:
-            packs = cur.titan_list()
+            packs = cur.titan_packages()
+            # packs = cur.titan_state()["packages"]
             for name, version in deps.items():
                 if name not in packs:
                     return False
@@ -38,12 +40,13 @@ class Environment:
 
 
 def create(db, schema):
-    with connect.scoped_cursor(db) as cur:
-        cur.exec(f"CREATE SCHEMA IF NOT EXISTS {db}.{schema}")
+    with connect.scoped_cursor(db, schema) as cur:
         for cmd in management.COMMANDS:
             cur.exec(cmd)
         cur.titan_upstate("titan_version", connect.Sql(f"'{__version__}'::VARIANT"))
         cur.titan_upstate("packages", [])
+        cur.titan_upstate("links", [])
+        # cur.titan_upstate("entities", {})
 
 
 @connect.using_scoped_cursor
@@ -56,9 +59,18 @@ def get(db, schema, cur):
 def exists(db, schema):
     with connect.scoped_cursor(db) as cur:
         schemas = cur.fetch(f"SHOW SCHEMAS LIKE '{schema}' IN DATABASE {db}")
-        return len(schemas) > 0
+        if not schemas:
+            return False
+    with connect.scoped_cursor(db, schema) as cur:
+        funcs = cur.fetch(f"SHOW FUNCTIONS LIKE 'titan_state' IN SCHEMA {schema}")
+        if not funcs:
+            return False
+        return True
+        # TODO: do version checking
+        # state = cur.titan_state()
+        # return "titan_version" in state
 
 
 @connect.using_scoped_cursor
-def destroy(db, schema, cur):
-    cur.exec(f"DROP SCHEMA IF EXISTS {db}.{schema} CASCADE")
+def reset(db, schema, cur):
+    cur.titan_reset()

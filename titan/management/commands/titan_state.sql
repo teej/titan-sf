@@ -5,3 +5,13 @@ CREATE FUNCTION titan_state()
 AS $$
 SELECT OBJECT_CONSTRUCT()
 $$
+;
+
+CREATE FUNCTION titan_packages()
+    RETURNS ARRAY
+    LANGUAGE SQL
+AS
+$$
+SELECT titan_state():packages::ARRAY
+$$
+;

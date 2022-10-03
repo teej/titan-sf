@@ -2,9 +2,7 @@ import re
 
 import click
 
-from titan import TITAN_DEFAULT_SCHEMA, environment, package, installer
-
-# from titan.package import Package, resolve_dependencies
+from titan import TITAN_DEFAULT_SCHEMA, TITAN_LOGO, environment, package, installer
 
 
 class SnowflakeIdentifier(click.ParamType):
@@ -41,24 +39,17 @@ hard_reset_option = click.option("--hard-reset", is_flag=True, help=f"Hard reset
 
 @click.group()
 def greet():
-    # config.init()
-    # CLI setup
-    pass
+    """
+    titan: a package manager for snowflake
+    """
+    _echo_header(f"titan: a package manager for snowflake", header="h1")
+    click.echo(TITAN_LOGO)
 
 
 def _echo_header(message, header="h2"):
-    # ══ Installing Package: [funnels] ════════════════════════════════════════
-    # ══ Installing Package: [funnels] ════════════════════════════════════════
     CLI_HEADERS = {"h1": "=", "h2": "-"}
     div = CLI_HEADERS[header]
-
-    # message = 'Hi'
-    # fill = ' '
-    # align = '<'
-    # width = 16
-    # f'{message:{fill}{align}{width}}'
     message = f" {message} "
-
     click.echo(f"{div*2}{message:{div}<78}")
 
 
@@ -67,29 +58,19 @@ def _echo_header(message, header="h2"):
 @schema_option
 @hard_reset_option
 def init(db, schema, hard_reset):
-    """Initializes Titan package manager
-
-    DB - the target database to use
-    """
-    _echo_header(f"Initializing Titan [db={db} schema={schema}]", header="h1")
-    # Check permissions of running user?
-
-    # Create schema
-    # Create empty manifest in schema
-    # UNSURE: Create schema state (function or table or smth) - is this the manifest? is this the lockfile?
+    """Initializes titan"""
+    _echo_header(f"Initializing titan [db={db} schema={schema}]", header="h2")
 
     if environment.exists(db, schema):
         if hard_reset:
-            environment.destroy(db, schema)
-            print("Old env destroyed")
+            click.echo("Existing environment found, resetting")
+            environment.reset(db, schema)
         else:
+            click.echo("Env already exists, exiting")
             return
-    print("Env doesnt exist, creating")
-
+    click.echo("Creating environment")
     environment.create(db, schema)
-    print("Titan environment created successfully")
-    # manifest.create(db=db, schema=schema)
-    # lock.create(db=db, schema=schema)
+    click.echo("titan environment created successfully")
 
 
 @greet.command()
@@ -97,33 +78,27 @@ def init(db, schema, hard_reset):
 @db_option
 @schema_option
 def install(package_name, db, schema):
-    """Install PACKAGE_NAME"""
-    _echo_header(f"Installing package: [{package_name}]", header="h1")
+    """Installs PACKAGE_NAME"""
+    _echo_header(f"Installing package: [{package_name}]", header="h2")
 
-    # Enforce single-threaded execution
-    print(package_name, db, schema)
+    # TODO: enforce single-threaded execution
     env = environment.get(db, schema)
 
     pack = package.find(package_name)
-    print(pack)
+    click.echo(pack)
 
     deps = package.resolve_dependencies(pack)
 
     if not env.has_dependencies(deps):
         # raise Exception(f"Environment missing dependency")
-        print("Environment missing dependency")
+        click.echo("Environment missing dependency")
 
-    # # display expected tree of objects to be installed
+    # TODO: display expected tree of objects to be installed
     # response = input("Would you like to proceed? [Y/n]")
     # if response != 'Y':
     #     return
 
     installer.install(env, pack, deps)
-
-    # installer.install(env, package.find("arraytools==1.0.0"))
-    # installer.install(env, package.find("datatools"), deps={"arraytools": "arraytools__1_0_0"})
-
-    # raise NotImplementedError
 
 
 # @greet.command()
@@ -131,8 +106,15 @@ def install(package_name, db, schema):
 # # @click.option("-y", default=False, help="Schema to use") # , is_flag=True, show_default=True, default=False,
 # def get(package):
 
-# def uninstall(package, schema=TITAN_DEFAULT_SCHEMA):
-#     raise NotImplementedError
+
+@greet.command()
+@click.argument("package_name")
+@db_option
+@schema_option
+def uninstall(package_name, db, schema):
+    """Removes PACKAGE_NAME"""
+    _echo_header(f"Uninstalling package: [{package_name}]", header="h2")
+    env = environment.get(db, schema)
 
 
 # def list(schema=TITAN_DEFAULT_SCHEMA):
@@ -142,13 +124,13 @@ def install(package_name, db, schema):
 #     raise NotImplementedError
 
 
-@greet.command()
-@db_option
-@schema_option
-def freeze(db, schema):
-    """
-    Takes all deps in a schema and creates a lockfile? Manifest?
-    """
-    _echo_header(f"Freeze [db={db} schema={schema}]", header="h1")
+# @greet.command()
+# @db_option
+# @schema_option
+# def freeze(db, schema):
+#     """
+#     Takes all deps in a schema and creates a lockfile? Manifest?
+#     """
+#     _echo_header(f"Freeze [db={db} schema={schema}]", header="h1")
 
-    raise NotImplementedError
+#     raise NotImplementedError

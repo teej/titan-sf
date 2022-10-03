@@ -4,10 +4,13 @@ import os
 import typing
 
 from functools import lru_cache as cache
+from io import StringIO
 
 import forge
 import snowflake.connector
 import snowflake.connector.errors
+
+from snowflake.connector.connection import split_statements
 
 
 @cache
@@ -17,6 +20,7 @@ def _conection():
         password=os.environ["SNOWFLAKE_PASSWORD"],
         account=os.environ["SNOWFLAKE_ACCOUNT"],
         role=os.environ["SNOWFLAKE_ROLE"],
+        warehouse=os.environ["SNOWFLAKE_WAREHOUSE"],
     )
 
 
@@ -64,7 +68,9 @@ class Cursor:
 
     def exec(self, query, fetch=False):
         try:
-            self._cur.execute(query)
+            for stmt, _ in split_statements(StringIO(query), remove_comments=True):
+                if stmt:
+                    self._cur.execute(stmt)
             if fetch:
                 return self._cur.fetchall()
         except snowflake.connector.errors.ProgrammingError:

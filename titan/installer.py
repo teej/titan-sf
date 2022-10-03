@@ -38,6 +38,8 @@ def link(cur, source, dest, code):
 def install(env, pack, deps={}):
     print("installing", pack)
     with connect.env_cursor(env) as cur:
+        # TODO: this needs to happen after package successfully installed
+        cur.titan_upstate("packages", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
         for name, entity in pack.entities.items():
             code = entity.statement.copy()
             code = make_safe(code)
@@ -51,6 +53,12 @@ def install(env, pack, deps={}):
             print(code.sql(dialect="snowflake"))
 
             cur.exec(code.sql(dialect="snowflake"))
-            link(cur, source, dest, code)
-        cur.titan_upstate("packages", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
+            # cur.titan_upstate("entities", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
+            # link(cur, source, dest, code)
+        # cur.titan_upstate("packages", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
     print("done")
+
+
+def uninstall(env, pack):
+    with connect.env_cursor(env) as cur:
+        cur.titan_uninstall(pack.id)
