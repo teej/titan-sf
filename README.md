@@ -9,7 +9,7 @@ a proof-of-concept package manager for Snowflake
 
 ## What is this?
 
-I wrote titan for the [HYTRADBOI jam](https://www.hytradboi.com/jam). titan is a declarative, pure-SQL package manager for Snowflake.
+I wrote titan for the [HYTRADBOI jam](https://www.hytradboi.com/jam). titan is a declarative, pure-SQL package manager for Snowflake. You can read more about it on [my blog](https://teej.ghost.io/titan-a-package-manager-for-snowflake/).
 
 ## Getting Started
 
