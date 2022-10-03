@@ -9,6 +9,7 @@ return Array.from({length: LEN}, (x, y) => VALUE);
 $$
 ;
 
+-- TODO: implement OVERLOAD
 -- CALL TITAN.OVERLOAD('array_from', ['VARCHAR', 'FLOAT']);
 -- CALL TITAN.OVERLOAD('array_from', ['NUMERIC', 'FLOAT']);
 
@@ -27,19 +28,3 @@ AS $$
 SELECT this.array_from(VALUE::VARIANT, LEN)
 $$
 ;
-
--- CALL 
-
-
-
-
-
--- SET package_name = 'array-tools';
--- SET version = '1.0';
-
--- CALL titan.build.dependencies([
---     'produce',
---     ['shopping-cart', '~> 0.1.0'],
---     {'cheesecake': {'version': '>=1.2.3, <2.0.0'}},
---     {'cheesecake_0_5': {'version': '0.5.3', 'package': 'cheesecake'}}
--- ]);

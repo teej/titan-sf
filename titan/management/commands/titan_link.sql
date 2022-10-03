@@ -9,7 +9,7 @@ AS
 $$
 
 def link(session, from_name, to_name, arguments, returns):
-    titan_schema = session.sql("SELECT current_schema()").collect()[0][0];
+    titan_schema = session.sql("SELECT current_schema()").collect()[0][0]
     if not titan_schema:
         return {"success": False, "exception": "Missing current schema"}
 
@@ -51,7 +51,7 @@ $$
 import json
 
 def unlink(session, target):
-    titan_schema = session.sql("SELECT current_schema()").collect()[0][0];
+    titan_schema = session.sql("SELECT current_schema()").collect()[0][0]
     if not titan_schema:
         return {"success": False, "exception": "Missing current schema"}
 

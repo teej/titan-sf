@@ -1,4 +1,12 @@
-# titan
+```
+    __  _ __          
+   / /_(_) /____ ____ 
+  / __/ / __/ _ `/ _ \
+  \__/_/\__/\_,_/_//_/
+   
+```
+
+
 a package manager for the snowflake data warehouse
 
 ## Getting Started
