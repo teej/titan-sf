@@ -2,7 +2,7 @@ import re
 
 import click
 
-from titan import TITAN_DEFAULT_SCHEMA, TITAN_LOGO, environment, package, installer
+from titan import __version__, TITAN_DEFAULT_SCHEMA, TITAN_LOGO, environment, package, installer
 
 
 class SnowflakeIdentifier(click.ParamType):
@@ -19,6 +19,7 @@ db_option = click.option(
     "--database",
     "-d",
     "db",
+    required=True,
     help=f"Database to use",
     type=SnowflakeIdentifier(),
 )
@@ -42,7 +43,7 @@ def greet():
     """
     titan: a package manager for snowflake
     """
-    _echo_header(f"titan: a package manager for snowflake", header="h1")
+    _echo_header(f"titan: a package manager for snowflake [v {__version__}]", header="h1")
     click.echo(TITAN_LOGO)
 
 
@@ -101,12 +102,6 @@ def install(package_name, db, schema):
     installer.install(env, pack, deps)
 
 
-# @greet.command()
-# @click.argument("package")
-# # @click.option("-y", default=False, help="Schema to use") # , is_flag=True, show_default=True, default=False,
-# def get(package):
-
-
 @greet.command()
 @click.argument("package_name")
 @db_option
@@ -115,22 +110,13 @@ def uninstall(package_name, db, schema):
     """Removes PACKAGE_NAME"""
     _echo_header(f"Uninstalling package: [{package_name}]", header="h2")
     env = environment.get(db, schema)
+    installer.uninstall(env, package_name)
 
 
-# def list(schema=TITAN_DEFAULT_SCHEMA):
-#     raise NotImplementedError
-
-# def upgrade(package, schema=TITAN_DEFAULT_SCHEMA):
-#     raise NotImplementedError
-
-
-# @greet.command()
-# @db_option
-# @schema_option
-# def freeze(db, schema):
-#     """
-#     Takes all deps in a schema and creates a lockfile? Manifest?
-#     """
-#     _echo_header(f"Freeze [db={db} schema={schema}]", header="h1")
-
-#     raise NotImplementedError
+@greet.command()
+@click.argument("package_name")
+@db_option
+@schema_option
+def upgrade(package_name, db, schema):
+    """Not implemented"""
+    raise NotImplementedError

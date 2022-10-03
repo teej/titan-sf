@@ -9,7 +9,6 @@ def make_safe(code):
 
 
 def wire_dependencies(code, deps, this_pack):
-    print(deps)
     for pack_name, pack_versions in deps.items():
         v = list(pack_versions)[0]
         version = str(v).replace(".", "_")
@@ -20,45 +19,27 @@ def wire_dependencies(code, deps, this_pack):
     return code
 
 
-def link(cur, source, dest, code):
-    args = list(ast.get_args(code))
-    arg_names = ",".join([arg.this.this for arg in args])
-    arg_pairs = ",".join([arg.sql() for arg in args])
-    config = ast.get_return_type(code).sql()
-    from_ = f"{source}({arg_names})"
-    to = f"{dest}({arg_pairs})"
-    # breakpoint()
-    # x = ast.get_return_type(code)
-    # Table Function
-    if ast.is_table_function(code):
-        from_ = " * FROM LATERAL " + from_
-    cur.titan_link(from_, to, config)
+def prefix_name(code, prefix):
+    return code.transform(lambda node: ast.prefix_func_name(node, prefix))
 
 
 def install(env, pack, deps={}):
-    print("installing", pack)
     with connect.env_cursor(env) as cur:
-        # TODO: this needs to happen after package successfully installed
-        cur.titan_upstate("packages", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
+        # TODO: need to consider rollback on bad install
+        cur.titan_state_append("packages", connect.Sql(f"'{pack.id}'::VARIANT"))
+        cur.titan_upstate(pack.id, [])
+        version_prefix = f"{pack.id}__"
         for name, entity in pack.entities.items():
             code = entity.statement.copy()
             code = make_safe(code)
             code = wire_dependencies(code, deps, pack.name)
-
-            dest = ast.func_name(code)
-            source = f"{pack.id}__{dest}"
-
-            code = code.transform(lambda node: ast.change_name(node, source))
-            print("~" * 120)
-            print(code.sql(dialect="snowflake"))
-
+            code = prefix_name(code, version_prefix)
             cur.exec(code.sql(dialect="snowflake"))
-            # cur.titan_upstate("entities", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
-            # link(cur, source, dest, code)
-        # cur.titan_upstate("packages", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
-    print("done")
+            installed_name = ast.func_name(code)
+            cur.titan_state_append(pack.id, connect.Sql(f"'{version_prefix}{entity.typesig()}'::VARIANT"))
+            cur.titan_link(installed_name, entity.name, entity.args, entity.returns)
 
 
-def uninstall(env, pack):
+def uninstall(env, package_name):
     with connect.env_cursor(env) as cur:
-        cur.titan_uninstall(pack.id)
+        cur.titan_uninstall(package_name)

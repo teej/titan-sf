@@ -1,8 +1,8 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="titan-sf",
-    version="0.0.1",
+    name="titan",
+    version="0.0.2",
     description="A package manager for Snowflake DB",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

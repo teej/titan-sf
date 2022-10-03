@@ -17,9 +17,16 @@ def arg_name(node):
     return node.this.this
 
 
-def change_name(node, new_name):
+def arg_value(node):
+    if not isinstance(node, exp.UserDefinedFunctionKwarg):
+        return None
+    return node.args.get("kind").sql()
+
+
+def prefix_func_name(node, prefix):
     if isinstance(node, exp.UserDefinedFunction):
-        node.this.set("this", new_name)
+        name = node.this.sql()
+        node.this.set("this", f"{prefix}{name}")
     return node
 
 
@@ -29,15 +36,12 @@ def func_name(node):
         return func.this.sql()
 
 
-def func_signature(node):
-    name = func_name(node)
-    args = get_args(node)
-    arg_pairs = ", ".join([arg.sql() for arg in args])
-    return f"{name}({arg_pairs})"
-
-
 def get_args(node):
     return node.find_all(exp.UserDefinedFunctionKwarg)
+
+
+def get_arg_pairs(node):
+    return [[arg_name(arg), arg_value(arg)] for arg in get_args(node)]
 
 
 def get_func_ref(node):
@@ -51,7 +55,6 @@ def get_func_ref(node):
 
 
 def collect_refs(node):
-    # breakpoint()
     # Create UDF refs
     refs = []
     udf = node.find(exp.UserDefinedFunction)
@@ -72,10 +75,6 @@ def collect_refs(node):
                 if isinstance(selected_source, exp.Table):
                     refs.append(selected_source)
 
-    # print(repr(node))
-    # print("&" * 120)
-    # for ref in refs:
-    #     print("---->", repr(ref))
     return refs
 
 
@@ -143,9 +142,6 @@ def strip_anon_func(node):
 
 
 def wire_dependencies(node, pack_name, pack_name_versioned):
-    print("wire_dependencies", pack_name, pack_name_versioned)
-
-    # breakpoint()
     if not node.find(exp.UserDefinedFunction):
         return node
 
@@ -161,7 +157,7 @@ def wire_dependencies(node, pack_name, pack_name_versioned):
                     func.set("this", f"{pack_name_versioned}__{func.name}")
                     func.parent.replace(func)
                     swapped = True
-                # func.parent.this.set("this", pack_name_versioned)
         if swapped:
+            # FIXME: this belongs upstream in sqlglot
             node.expression.set("this", code.sql().replace("LATERAL VIEW", "LATERAL"))
     return node

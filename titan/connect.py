@@ -48,7 +48,6 @@ class Cursor:
             params = kwargs.values()
             sql_ = sql.format(*params)
             result = self.fetchone(sql_)[0]
-            print(">>", sql_, ">>", params, serde, result)
             if serde == "json":
                 return json.loads(result)
             elif serde == "bool" and not result:

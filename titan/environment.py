@@ -29,13 +29,10 @@ class Environment:
     def has_dependencies(self, deps):
         with connect.env_cursor(self) as cur:
             packs = cur.titan_packages()
-            # packs = cur.titan_state()["packages"]
             for name, version in deps.items():
                 if name not in packs:
                     return False
                     # raise Exception(f"Missing dependency {name}")
-            # print(deps)
-            # return cur.titan_upstate("packages", connect.Sql(f"ARRAY_APPEND(TITAN_STATE():packages, '{pack.id}')"))
         return True
 
 
@@ -46,13 +43,12 @@ def create(db, schema):
         cur.titan_upstate("titan_version", connect.Sql(f"'{__version__}'::VARIANT"))
         cur.titan_upstate("packages", [])
         cur.titan_upstate("links", [])
-        # cur.titan_upstate("entities", {})
 
 
 @connect.using_scoped_cursor
 def get(db, schema, cur):
-    current_state = cur.titan_state()
-    env = Environment(db, schema, **current_state)
+    state = cur.titan_state()
+    env = Environment(db, schema, state["titan_version"], state["packages"], state["links"])
     return env
 
 

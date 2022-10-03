@@ -1,4 +1,4 @@
-CREATE PROCEDURE titan_link(link_from VARCHAR, link_to VARCHAR, returns VARCHAR)
+CREATE PROCEDURE titan_link(from_name VARCHAR, to_name VARCHAR, arguments ARRAY, returns VARCHAR)
     RETURNS OBJECT
     LANGUAGE PYTHON
     RUNTIME_VERSION = '3.8'
@@ -8,31 +8,37 @@ CREATE PROCEDURE titan_link(link_from VARCHAR, link_to VARCHAR, returns VARCHAR)
 AS
 $$
 
-def link(session, link_from, link_to, returns):
+def link(session, from_name, to_name, arguments, returns):
     titan_schema = session.sql("SELECT current_schema()").collect()[0][0];
     if not titan_schema:
         return {"success": False, "exception": "Missing current schema"}
 
+    full_sig = ", ".join([" ".join(arg) for arg in arguments])
+    name_sig = ", ".join([arg[0] for arg in arguments])
+    type_sig = ", ".join([arg[1] for arg in arguments])
+
+    create_function = f"{to_name}({full_sig})"
+    from_function = f"{from_name}({name_sig})"
+
+    is_table_function = "TABLE" in returns
+
+    query = "SELECT * FROM LATERAL" if is_table_function else "SELECT"
+
     session.sql(f"""
-        CREATE FUNCTION {link_to}
+        CREATE FUNCTION {create_function}
             RETURNS {returns}
             LANGUAGE SQL 
-            COMMENT = 'Titan symlink {link_from}'
+            COMMENT = 'Titan symlink {from_function}'
         AS
-        'SELECT {link_from}'
+        '{query} {from_function}'
     """).collect()
-    session.sql(f"""
-        CALL titan_upstate(
-            'links',
-            ARRAY_APPEND(TITAN_STATE():links, ['{link_from}', '{link_to}'])
-        )
-    """).collect()
-    return {"success": True, "message": f"Added link {link_from} -> {link_to}"}
+    session.call('titan_state_append', 'links', [f'{from_name}({type_sig})', f'{to_name}({type_sig})'])
+    return {"success": True, "message": f"Added link {from_function} -> {create_function}"}
 
 $$
 ;
 
-CREATE PROCEDURE titan_unlink(target_link_to VARCHAR)
+CREATE PROCEDURE titan_unlink(target VARCHAR)
     RETURNS OBJECT
     LANGUAGE PYTHON
     RUNTIME_VERSION = '3.8'
@@ -44,32 +50,19 @@ $$
 
 import json
 
-def _sig_types_only(full_sig):
-    name, kwargs = full_sig.split("(")
-    kwargs = kwargs.split(")")[0].split(",")
-    kwargs = [arg.strip().split(' ')[-1] for arg in kwargs]
-    kwargs = ','.join(kwargs)
-
-    return f"{name}({kwargs})"
-
-def unlink(session, target_link_to):
+def unlink(session, target):
     titan_schema = session.sql("SELECT current_schema()").collect()[0][0];
     if not titan_schema:
         return {"success": False, "exception": "Missing current schema"}
 
     links = json.loads(session.sql("SELECT titan_state():links").collect()[0][0])
+    removed = 0
     for link_from, link_to in links:
-        if link_to == target_link_to:
-            sig = _sig_types_only(target_link_to)
-            links.remove([link_from, link_to])
-            session.sql(f"DROP FUNCTION {sig}").collect()
-            session.sql(f"""
-                CALL titan_upstate(
-                    'links',
-                    {json.dumps(links)}
-                )
-            """).collect()
-            return {"success": True, "message": f"Removed link {link_from} -> {link_to}"}
+        if link_from == target:
+            session.sql(f"DROP FUNCTION {link_to}").collect()
+            session.call('titan_state_remove', 'links', [link_from, link_to])
+            removed += 1
+    return {"success": True, "message": f"Removed {removed} links"}
 
 $$
 ;

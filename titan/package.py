@@ -22,7 +22,6 @@ class Package:
         code = {}
 
         for filename in os.listdir(package_path):
-            print("->", filename)
             if not filename.endswith(".sql"):
                 continue
             code[filename] = open(os.path.join(package_path, filename)).read()
@@ -60,25 +59,18 @@ class Package:
                         for package_ref in args[0]:
                             self._imports[package_ref] = True
                 elif stmt:
-                    name = ast.func_name(stmt)
-                    sig = ast.func_signature(stmt)
-                    refs = ast.collect_refs(stmt)
-                    prefs = [PackageReference.from_expression(ref) for ref in refs]
-                    self._entity_names.add(name.upper())
-                    self._entities[sig] = PackageEntity(name=name, sig=sig, statement=stmt, refs=prefs)
-        print("done unpacking")
-        print(self._entities)
+                    entity = PackageEntity(stmt)
+                    self._entity_names.add(entity.name.upper())
+                    self._entities[entity.sig()] = entity
 
     def _verify_contents(self):
         # Verify references
         for name, entity in self._entities.items():
-            print("Verify", entity.sig)
             if name in RESERVED_FUNCTION_NAMES:
                 raise Exception(f"Package function {name} is reserved")
 
-            print(entity.refs)
             for ref in entity.refs:
-                print("  - entity:", ref)
+                # print("  - entity:", ref)
                 if ref.exp_type == exp.Table:
                     raise Exception(f"Package includes a table reference [{ref.full_name()}]")
                 elif ref.exp_type == exp.Anonymous:
@@ -123,17 +115,29 @@ class Package:
 
 
 class PackageEntity:
-    def __init__(self, name, sig, statement, refs):
-        self.name = name
-        self.sig = sig
+    def __init__(self, statement):
+        self.name = ast.func_name(statement)
+        self.args = ast.get_arg_pairs(statement)
+        self.returns = ast.get_return_type(statement).sql()
         self.statement = statement
-        self.refs = refs
+        refs = ast.collect_refs(statement)
+        self.refs = [PackageReference.from_expression(ref) for ref in refs]
+
+        # self.sig = ast.func_signature(statement)
+        # self.types = ast.func_types(statement)
+
+    def sig(self):
+        args = ", ".join([" ".join(arg) for arg in self.args])
+        return f"{self.name}({args})"
+
+    def typesig(self):
+        args = ", ".join([arg[1] for arg in self.args])
+        return f"{self.name}({args})"
 
 
 class PackageReference:
     @classmethod
     def from_expression(cls, ex):
-        print(repr(ex))
         if isinstance(ex, exp.UserDefinedFunction):
             args = ast.get_args(ex)
             args = ", ".join([arg.sql() for arg in args])
@@ -205,8 +209,6 @@ def resolve_dependencies(root):
             raise Exception(f"Unknown dependency {dep}")
         pack = find(package_ref)
         add(pack)
-    # print("%" * 120)
-    # print(pointers)
     return pointers
 
 
