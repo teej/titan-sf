@@ -60,7 +60,6 @@ export SNOWFLAKE_ROLE="<role>"
 export SNOWFLAKE_WAREHOUSE="<wh>"
 ```
 
-
 ## Known issues
 
 This is, at best, alpha software.

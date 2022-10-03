@@ -11,11 +11,3 @@ BEGIN
 END;
 $$
 ;
-
-
-
-    -- EXECUTE IMMEDIATE 'SELECT titan_assert(, titan_state():packages)';
-    -- titan_path := (SELECT TITAN.THIS.PATH( :PACKAGE_NAMES ));
-    -- path := '$current, $public, ' || :titan_path;
-    -- EXECUTE IMMEDIATE 'ALTER SESSION SET SEARCH_PATH = \'' || :path || '\'';
-    -- RETURN :path;
